@@ -1,40 +1,258 @@
-
-const formatCompact = (num)=> num>=1000 ? ((num%1000===0)?(num/1000)+'k':(num/1000).toFixed(1)+'k') : num;
-const formatCurrency = (num)=> new Intl.NumberFormat('en-IN').format(num);
 let appState={axyapatra:30000,startAxyapatra:30000,chakra:1,yNums:{},kNums:{}};
-let settings={stopLoss:10000,minBet:100,maxBet:5000,multiple:1,isDouble:false,maxSteps:5,safetyReserve:5000,capRule:true,payoutMultiplier:9};
-let ladder=[], stateHistory=[], visualTimeline=[], pendingY=null, pendingK=null;
-let drishtiStats={roundsPlayed:0,totalBets:0,netProfit:0,maxExposure:0};
-function initNumbersState(){appState.yNums={};appState.kNums={};for(let i=1;i<=9;i++){appState.yNums[i]={state:'INACTIVE',step:0};appState.kNums[i]={state:'INACTIVE',step:0};}}
-const MedhaAnalyzer=(function(){let analysisState={shoeId:Date.now(),totalRounds:0,globalCapRounds:[],numbers:{}};function init(){analysisState={shoeId:Date.now(),totalRounds:0,globalCapRounds:[],numbers:{}};['Y','K'].forEach(side=>{for(let i=1;i<=9;i++)analysisState.numbers[`${side}_${i}`]={side,num:i,capOccurrence:0,capReturnOccurrence:0,totalActivations:0,winStepsHistory:[],repeatDistances:[],netProfit:0};});}
-function recordRound(){analysisState.totalRounds++;}
-function recordActivation(side,num,chakra){const n=analysisState.numbers[`${side}_${num}`]; n.totalActivations++; n.activationRound=chakra;}
-function recordLoss(side,num,amt){analysisState.numbers[`${side}_${num}`].netProfit-=Math.abs(amt);}
-function recordWin(side,num,chakra,step,profit){const n=analysisState.numbers[`${side}_${num}`];n.netProfit+=profit;n.winStepsHistory.push(step);if(n.activationRound)n.repeatDistances.push(chakra-n.activationRound);}
-function recordCap(side,num){const n=analysisState.numbers[`${side}_${num}`];n.capOccurrence++;analysisState.globalCapRounds.push(analysisState.totalRounds);}
-function recordCapReturn(side,num){analysisState.numbers[`${side}_${num}`].capReturnOccurrence++;}
-function getAnalysis(){let rawStats=[];let totalActs=0,sumCaps=0,totalWins=0,sumWin=0,capCluster=0;['Y','K'].forEach(side=>{for(let i=1;i<=9;i++){const n=analysisState.numbers[`${side}_${i}`];const avgWin=n.winStepsHistory.length?n.winStepsHistory.reduce((a,b)=>a+b,0)/n.winStepsHistory.length:0;const avgRep=n.repeatDistances.length?n.repeatDistances.reduce((a,b)=>a+b,0)/n.repeatDistances.length:0;const capProb=n.totalActivations? (n.capOccurrence/n.totalActivations)*100:0;const danger=capProb*1.5+avgRep*2+(n.capReturnOccurrence*50)+(n.netProfit<0?Math.abs(n.netProfit)/25:0);const stability=(n.netProfit>0?n.netProfit/100:0)+(100-capProb)/2;const future=Math.max(0,Math.min(100,danger*0.3+capProb*0.5-stability*0.1));rawStats.push({side,num:i,totalActivations:n.totalActivations,capOccurrence:n.capOccurrence,capProbability:+capProb.toFixed(1),dangerScore:+danger.toFixed(2),stabilityScore:+stability.toFixed(2),futureRiskProbability:+future.toFixed(2),activationCycleScore:0,capClusterScore:n.capOccurrence,repeatVelocity:avgRep?10/avgRep:0,expectedWinStep:avgWin||0,averageRepeatDistance:avgRep||0,capRiskScore:capProb + (n.netProfit<0?Math.abs(n.netProfit)/50:0),netProfit:n.netProfit,capReturnOccurrence:n.capReturnOccurrence}); totalActs+=n.totalActivations; sumCaps+=n.capOccurrence; totalWins+=n.winStepsHistory.length; sumWin+=n.winStepsHistory.reduce((a,b)=>a+b,0); capCluster+=n.capOccurrence;}});const capRate=totalActs?(sumCaps/totalActs)*100:0;const averageWinStep=totalWins?(sumWin/totalWins):0;let volatilityIndex='LOW'; if(capRate>30)volatilityIndex='HIGH'; else if(capRate>15)volatilityIndex='MEDIUM'; const activationDensity=analysisState.totalRounds? totalActs/analysisState.totalRounds:0; const quantumSimulation={survivalProbability:Math.max(0,Math.min(100,100-capRate)),stopLossProbability:Math.min(100,capRate),targetHitProbability:Math.max(0,40-capRate/2),expectedMaxDrawdown:Math.round(activationDensity*averageWinStep*200),extremeDrawdownRisk:Math.round(activationDensity*averageWinStep*350),ladderStressScore:Math.min(100,capRate+(activationDensity*10)),safeExposureMin:Math.max(100,Math.round(activationDensity*averageWinStep*100)),safeExposureMax:Math.max(150,Math.round(activationDensity*averageWinStep*220))}; return {rawStats,volatilityIndex,capRate:+capRate.toFixed(2),activationDensity:+activationDensity.toFixed(2),capClusterScore:capCluster,phaseState:volatilityIndex==='HIGH'?'CHAOTIC':(volatilityIndex==='MEDIUM'?'EXPANSION':'STABLE'),phasePredictionPercentages:{STABLE:40,EXPANSION:30,CHAOTIC:20,RECOVERY:10},quantumSimulation,cycleNumbers:rawStats.filter(x=>x.stabilityScore>20).slice(0,4),futureDangerNumbers:rawStats.filter(x=>x.futureRiskProbability>50).slice(0,4),quantumDangerNumbers:rawStats.filter(x=>x.futureRiskProbability>60).slice(0,4)};}
-function render(id){const c=document.getElementById(id); if(!c)return; const a=getAnalysis(); c.innerHTML=`<div style='border:1px solid #cca800;border-radius:8px;padding:15px;background:#0a1128;'><h3 style='color:#ffd700;text-align:center;margin-bottom:15px;text-transform:uppercase;'>Medha L5 Quantum AI</h3><div style='display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;text-align:center;font-size:.8rem;'><div style='background:#111d40;padding:10px;border:1px solid #2a3f70;border-radius:5px;'><span style='color:#aaa;'>Sim Survival</span><br><b style='color:#00ff7f;'>${a.quantumSimulation.survivalProbability}%</b></div><div style='background:#111d40;padding:10px;border:1px solid #2a3f70;border-radius:5px;'><span style='color:#aaa;'>Stop Loss Risk</span><br><b style='color:#ff4500;'>${a.quantumSimulation.stopLossProbability}%</b></div></div><div style='font-size:.85rem;margin-bottom:15px;'><p><b>L4 Future Danger:</b> <span style='color:#ffa500'>${a.futureDangerNumbers.map(n=>`${n.side}${n.num}`).join(', ')||'None'}</span></p><p><b>L5 Quantum Danger:</b> <span style='color:#ff4500'>${a.quantumDangerNumbers.map(n=>`${n.side}${n.num}`).join(', ')||'None'}</span></p></div></div>`;}
-function exportCSV(){const a=getAnalysis();const blob=new Blob([JSON.stringify(a,null,2)],{type:'application/json'});const link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download='KUBERA_MEDHA_V2.json';link.click();}
-function clearAnalyzerArchive(){}
-init(); return {reset:init,recordRound,recordActivation,recordWin,recordLoss,recordCap,recordCapReturn,getAnalysis,render,exportCSV,clearAnalyzerArchive,archiveCurrentShoe:init};})();
-function rebuildLadder(){ladder=[]; let amt=settings.minBet*settings.multiple; for(let i=1;i<=Math.max(10,settings.maxSteps);i++){ladder.push({step:i,amount:Math.min(amt,settings.maxBet)}); amt=settings.isDouble?amt*2:amt+(settings.minBet*settings.multiple);} }
-function syncSettingsFromUI(){appState.startAxyapatra=parseInt(document.getElementById('set-axyapatra').value)||30000; settings.stopLoss=parseInt(document.getElementById('set-stop-loss').value)||10000; settings.minBet=parseInt(document.getElementById('set-min-bet').value)||100; settings.maxBet=parseInt(document.getElementById('set-max-bet').value)||5000; settings.multiple=parseInt(document.getElementById('set-multiple').value)||1; settings.isDouble=document.getElementById('set-double-ladder').checked; settings.maxSteps=parseInt(document.getElementById('set-max-steps').value)||5; settings.safetyReserve=parseInt(document.getElementById('set-safety').value)||5000; settings.capRule=document.getElementById('set-cap-rule').checked;}
-function getBet(step){if(step<1)return 0; const s=Math.min(step,settings.maxSteps); return ladder[s-1]?ladder[s-1].amount:0;}
-function updateRiskMeter(){const medha=MedhaAnalyzer.getAnalysis(); let riskScore=medha.capRate+medha.activationDensity*10+medha.capClusterScore*5+(medha.volatilityIndex==='HIGH'?40:medha.volatilityIndex==='MEDIUM'?20:0); let level='LOW'; if(riskScore>75) level='EXTREME'; else if(riskScore>50) level='HIGH'; else if(riskScore>25) level='MEDIUM'; const fill=document.getElementById('risk-meter-fill'); const txt=document.getElementById('risk-meter-text'); if(fill){fill.style.width=Math.min(100,riskScore)+'%'; fill.className='risk-meter-fill '+level.toLowerCase();} if(txt)txt.innerText=level; let recentCaps=0; for(let i=Math.max(0,visualTimeline.length-10); i<visualTimeline.length;i++) recentCaps += visualTimeline[i].events.filter(e=>e.type==='CAP').length; const banner=document.getElementById('cap-storm-banner'); if(banner){ if(recentCaps>=3){ banner.style.display='block'; document.getElementById('storm-intensity').innerText = recentCaps>=7?'HIGH':recentCaps>=5?'MEDIUM':'LOW'; } else banner.style.display='none';}}
-function renderYKTPanel(){let yArr=[],kArr=[],next=0; const map=(dict,arr)=>{for(let i=1;i<=9;i++){if(dict[i].state==='ACTIVE'){const amt=getBet(dict[i].step); arr.push(`${formatCompact(amt)} on ${i}(<span class='step-s${Math.min(dict[i].step,5)}'>S${dict[i].step}</span>)`); next+=amt;}}}; map(appState.yNums,yArr); map(appState.kNums,kArr); document.querySelector('#y-plan .content').innerHTML=yArr.length?yArr.join(' | '):'--'; document.querySelector('#k-plan .content').innerHTML=kArr.length?kArr.join(' | '):'--'; document.querySelector('#t-plan .content').innerText=formatCompact(next);} 
-function renderVyuha(){const medha=MedhaAnalyzer.getAnalysis(); const y=document.getElementById('vyuha-y'); const k=document.getElementById('vyuha-k'); if(!y||!k)return; y.innerHTML='';k.innerHTML=''; const build=(num,obj,side)=>{let cls='heatmap-normal'; const stat=medha.rawStats.find(s=>s.side===side&&s.num===num); if(obj.state==='CAP') cls='heatmap-cap'; else if(obj.state==='LOCKED') cls='heatmap-locked'; else if(stat&&obj.state!=='INACTIVE'){ if(stat.futureRiskProbability>70) cls='heatmap-danger'; else if(stat.capProbability>40) cls='heatmap-risk'; else if(stat.stabilityScore>20) cls='heatmap-safe'; } if(obj.state==='INACTIVE') cls='heatmap-inactive'; const pct=obj.state==='INACTIVE'||obj.state==='LOCKED'?0:Math.min(100,(obj.step/settings.maxSteps)*100); return `<div class='vyuha-tile ${cls}'><div class='vyuha-progress' style='height:${pct}%;'></div><div style='position:relative;z-index:2;text-align:center;'><span style='font-size:1.2rem;'>${num}</span><br><span style='font-size:0.6rem;opacity:0.9;'>S${obj.step}</span></div></div>`}; for(let i=1;i<=9;i++){y.innerHTML+=build(i,appState.yNums[i],'Y'); k.innerHTML+=build(i,appState.kNums[i],'K');}}
-function renderTimeline(){const c=document.getElementById('timeline-body'); if(!c)return; c.innerHTML=''; for(let i=visualTimeline.length-1;i>=0;i--){const item=visualTimeline[i]; const badges=item.events.map(e=>`<span class='t-event-badge ${e.type==='WIN'?'te-win':e.type.includes('CAP')?'te-cap':e.type==='REPEAT'?'te-repeat':'te-activate'}'>${e.side}${e.num} ${e.type}</span>`).join(''); c.innerHTML += `<div class='timeline-row'><div class='t-chakra'>${item.chakra}</div><div class='t-result'>Y${item.yVal===0?'-':item.yVal} K${item.kVal===0?'-':item.kVal}</div><div class='t-events'>${badges}</div></div>`; }}
-function renderSopana(){const body=document.getElementById('ladder-body'); if(!body)return; body.innerHTML=''; for(let i=0;i<Math.max(settings.maxSteps,ladder.length);i++){ if(!ladder[i]) break; body.innerHTML += `<tr><td>S${ladder[i].step}</td><td><input type='number' class='ladder-input' data-idx='${i}' value='${ladder[i].amount}'></td></tr>`;} document.querySelectorAll('.ladder-input').forEach(inp=>inp.addEventListener('change',e=>{const idx=parseInt(e.target.getAttribute('data-idx'),10); ladder[idx].amount=parseInt(e.target.value,10)||0; updateAllUI();}));}
-function renderDrishti(){document.getElementById('stat-rounds').innerText=Math.max(0,appState.chakra-1); document.getElementById('stat-bets').innerText=drishtiStats.totalBets; document.getElementById('stat-profit').innerText=formatCurrency(drishtiStats.netProfit); document.getElementById('stat-exposure').innerText=formatCurrency(drishtiStats.maxExposure);}
-function addHistoryRow(chakra,y,k,bet,bank){document.getElementById('history-body').insertAdjacentHTML('afterbegin',`<tr><td>${chakra}</td><td>${y===0?'0':y}</td><td>${k===0?'0':k}</td><td>${bet}</td><td>${formatCurrency(bank)}</td></tr>`);}
-function updateAllUI(){document.getElementById('live-axyapatra').innerText=formatCurrency(appState.axyapatra); document.getElementById('current-chakra').innerText=appState.chakra; renderYKTPanel(); renderVyuha(); renderTimeline(); renderSopana(); renderDrishti(); updateRiskMeter();}
-function processChakra(yVal,kVal){stateHistory.push(JSON.parse(JSON.stringify(appState))); MedhaAnalyzer.recordRound(); let exposure=0,count=0; const events=[]; const calc=dict=>{for(let i=1;i<=9;i++) if(dict[i].state==='ACTIVE'){exposure+=getBet(dict[i].step); count++;}}; calc(appState.yNums); calc(appState.kNums); appState.axyapatra-=exposure; drishtiStats.totalBets+=count; drishtiStats.roundsPlayed++; drishtiStats.maxExposure=Math.max(drishtiStats.maxExposure,exposure); const processSide=(val,dict,side)=>{ if(val===0){for(let i=1;i<=9;i++) if(dict[i].state==='ACTIVE'){MedhaAnalyzer.recordLoss(side,i,getBet(dict[i].step)); advance(dict[i],side,i);} return;} for(let i=1;i<=9;i++){const o=dict[i]; if(i===val){ if(o.state==='INACTIVE'){o.state='ACTIVE';o.step=1; MedhaAnalyzer.recordActivation(side,i,appState.chakra); events.push({side,num:i,type:'ACTIVATE'});} else if(o.state==='ACTIVE'){const current=getBet(o.step); const payout=current*settings.payoutMultiplier; let invested=0; for(let s=1;s<=o.step;s++) invested+=getBet(s); const profit=payout-invested; appState.axyapatra+=payout; o.state='LOCKED'; MedhaAnalyzer.recordWin(side,i,appState.chakra,o.step,profit); events.push({side,num:i,type:'REPEAT'}); events.push({side,num:i,type:'WIN'}); showToast('TREASURY TRIUMPH'); } else if(o.state==='CAP'){ MedhaAnalyzer.recordCapReturn(side,i); events.push({side,num:i,type:'CAP RETURN'});} } else if(o.state==='ACTIVE'){ MedhaAnalyzer.recordLoss(side,i,getBet(o.step)); advance(o,side,i);} }}; const advance=(o,side,num)=>{o.step++; if(o.step>settings.maxSteps){ if(settings.capRule){o.state='CAP'; o.step=settings.maxSteps; MedhaAnalyzer.recordCap(side,num); events.push({side,num,type:'CAP'});} else o.step=settings.maxSteps; }}; processSide(yVal,appState.yNums,'Y'); processSide(kVal,appState.kNums,'K'); visualTimeline.push({chakra:appState.chakra,yVal,kVal,events}); addHistoryRow(appState.chakra,yVal,kVal,exposure,appState.axyapatra); appState.chakra++; drishtiStats.netProfit=appState.axyapatra-appState.startAxyapatra; updateAllUI(); MedhaAnalyzer.render('medha-container');}
-function handleInput(side,val){ if(side==='Y') pendingY=val; if(side==='K') pendingK=val; document.querySelectorAll('.num-btn').forEach(btn=>{const bside=btn.getAttribute('data-side'), bval=parseInt(btn.getAttribute('data-val'),10); if((bside==='Y'&&bval===pendingY)||(bside==='K'&&bval===pendingK)){btn.style.boxShadow='inset 0 0 10px #ffd700';btn.style.background='#ffd700';btn.style.color='black';} else {btn.style.boxShadow='';btn.style.background='';btn.style.color='';}}); if(pendingY!==null&&pendingK!==null){processChakra(pendingY,pendingK); pendingY=null; pendingK=null; document.querySelectorAll('.num-btn').forEach(btn=>{btn.style.boxShadow='';btn.style.background='';btn.style.color='';});}}
-function undo(){if(!stateHistory.length){showToast('No history to undo');return;} appState=stateHistory.pop(); const tbody=document.getElementById('history-body'); if(tbody.firstElementChild) tbody.removeChild(tbody.firstElementChild); if(visualTimeline.length) visualTimeline.pop(); updateAllUI();}
-function clearKumbha(){appState.chakra=1; initNumbersState(); stateHistory=[]; visualTimeline=[]; pendingY=null; pendingK=null; updateAllUI(); showToast('KUMBHA RESET');}
-function startNewPrayoga(){MedhaAnalyzer.archiveCurrentShoe(); appState.chakra=1; initNumbersState(); stateHistory=[]; visualTimeline=[]; const tbody=document.getElementById('history-body'); if(tbody.innerHTML.trim()!=='') tbody.insertAdjacentHTML('afterbegin',`<tr style='background:#2a3f70;'><td colspan='5' style='color:#ffd700;font-weight:bold;text-align:center;'>--- NEW PRAYOGA ---</td></tr>`); pendingY=null; pendingK=null; updateAllUI(); MedhaAnalyzer.render('medha-container'); showToast('ĀHUTI PRAYOGA READY');}
-function applyYantra(){syncSettingsFromUI(); rebuildLadder(); document.getElementById('start-axyapatra').innerText=appState.startAxyapatra; updateAllUI(); showToast('YANTRA APPLIED');}
-function bindEvents(){document.querySelectorAll('.num-btn').forEach(btn=>btn.addEventListener('click',e=>handleInput(e.target.getAttribute('data-side'),parseInt(e.target.getAttribute('data-val'),10)))); document.getElementById('btn-undo').addEventListener('click',undo); document.getElementById('btn-clear').addEventListener('click',clearKumbha); document.getElementById('btn-new').addEventListener('click',startNewPrayoga); document.getElementById('btn-apply-yantra').addEventListener('click',applyYantra); document.getElementById('btn-export-medha-csv').addEventListener('click',()=>MedhaAnalyzer.exportCSV()); document.getElementById('btn-clear-medha-archive').addEventListener('click',()=>{MedhaAnalyzer.clearAnalyzerArchive(); MedhaAnalyzer.render('medha-container');}); document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',e=>{document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active')); document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); const target=e.target.closest('.nav-btn'); const id=target.getAttribute('data-target'); target.classList.add('active'); document.getElementById(id).classList.add('active'); if(id==='medha') MedhaAnalyzer.render('medha-container'); if(id==='timeline') renderTimeline(); if(id==='vyuha') renderVyuha(); if(id==='sopana') renderSopana();}));}
-function initEngine(){initNumbersState(); bindEvents(); syncSettingsFromUI(); rebuildLadder(); appState.axyapatra=appState.startAxyapatra; updateAllUI(); MedhaAnalyzer.render('medha-container');}
-initEngine();
+let settings={targetUsd:500,targetPct:1.67,stopLoss:2000,coinSize:100,maxBet:3000,isDouble:true,maxSteps:12,safetyReserve:20000,capRule:true,autoScale:false};
+let ladder=[],stateHistory=[],visualTimeline=[],pendingY=null,pendingK=null;
+let drishtiStats={roundsPlayed:0,totalBets:0,netProfit:0,maxExposure:0,numData:{}};
+
+const formatCompact=(num)=>num>=1000?((num%1000===0)?(num/1000)+'k':(num/1000).toFixed(1)+'k'):num;
+const formatCurrency=(num)=>new Intl.NumberFormat('en-IN').format(num);
+
+function showToast(msg){
+  const root=document.getElementById('toast-root');
+  const el=document.createElement('div');
+  el.className='toast';
+  el.textContent=msg;
+  root.appendChild(el);
+  setTimeout(()=>el.remove(),2500);
+}
+function showModal(title,msg){
+  const overlay=document.createElement('div');
+  overlay.className='overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:6000;';
+  overlay.innerHTML=`<div style="background:#0a1128;border:2px solid #ff4500;border-radius:14px;padding:20px;max-width:340px;width:85%;text-align:center;color:white"><h3 style="margin:0 0 10px;color:#ff4500">${title}</h3><p style="margin:0 0 14px">${msg}</p><button style="padding:10px 20px;border:none;border-radius:10px;background:#ffd700;color:#111;font-weight:bold">OK</button></div>`;
+  overlay.querySelector('button').onclick=()=>overlay.remove();
+  document.body.appendChild(overlay);
+}
+
+function initNumbersState(){
+  appState.yNums={}; appState.kNums={};
+  for(let i=1;i<=9;i++){appState.yNums[i]={state:'INACTIVE',step:0};appState.kNums[i]={state:'INACTIVE',step:0};}
+}
+function initDrishtiData(){
+  drishtiStats.numData={};
+  ['Y','K'].forEach(side=>{for(let i=1;i<=9;i++) drishtiStats.numData[`${side}_${i}`]={activationRound:'-',repeatRound:'-',winStep:'-',netProfit:0,capOccurrence:0};});
+}
+function getActiveCoinSize(){
+  if(!settings.autoScale) return settings.coinSize;
+  if(appState.axyapatra<=20000) return 50;
+  if(appState.axyapatra<=50000) return 100;
+  return 500;
+}
+function rebuildLadder(){
+  ladder=[]; let currentAmt=getActiveCoinSize();
+  for(let i=1;i<=Math.max(15,settings.maxSteps);i++){
+    ladder.push({step:i,amount:Math.min(currentAmt,settings.maxBet)});
+    if(settings.isDouble) currentAmt*=2; else currentAmt+=getActiveCoinSize();
+  }
+}
+function bindKeypads(){
+  const padY=document.getElementById('padY'), padK=document.getElementById('padK');
+  padY.innerHTML=''; padK.innerHTML='';
+  const make=(side,val)=>{const b=document.createElement('button');b.className='num-btn';b.textContent=val;b.onclick=()=>handleInput(side,val);return b;};
+  for(let i=1;i<=9;i++) padY.appendChild(make('Y',i));
+  const e1=document.createElement('div'); e1.className='empty'; padY.appendChild(e1);
+  padY.appendChild(make('Y',0)); const e2=document.createElement('div'); e2.className='empty'; padY.appendChild(e2);
+  for(let i=1;i<=9;i++) padK.appendChild(make('K',i));
+  const e3=document.createElement('div'); e3.className='empty'; padK.appendChild(e3);
+  padK.appendChild(make('K',0)); const e4=document.createElement('div'); e4.className='empty'; padK.appendChild(e4);
+}
+function handleInput(side,val){
+  if(side==='Y') pendingY=val;
+  if(side==='K') pendingK=val;
+  highlightPending();
+  if(pendingY!==null && pendingK!==null){
+    processChakra(pendingY,pendingK);
+    pendingY=null; pendingK=null;
+    highlightPending();
+  }
+}
+function highlightPending(){
+  document.querySelectorAll('.num-btn').forEach(btn=>{
+    const parent=btn.parentElement.id==='padY'?'Y':'K';
+    const val=parseInt(btn.textContent,10);
+    if((parent==='Y'&&val===pendingY)||(parent==='K'&&val===pendingK)){btn.style.boxShadow='inset 0 0 10px #ffd700';btn.style.background='#ffd700';btn.style.color='#111';}
+    else{btn.style.boxShadow='';btn.style.background='';btn.style.color='';}
+  });
+}
+function getBet(step){
+  if(step<1) return 0;
+  const s=Math.min(step,settings.maxSteps);
+  return ladder[s-1]?ladder[s-1].amount:0;
+}
+function pushEvent(roundEvents,side,num,type){roundEvents.push({side,num,type});}
+
+function processChakra(yVal,kVal){
+  stateHistory.push(JSON.parse(JSON.stringify({appState,drishtiStats,visualTimeline,settings})));
+  const prevCoin=getActiveCoinSize();
+  let roundExposure=0, roundBetsCount=0, roundEvents=[];
+  const calcExposure=(dict)=>{for(let i=1;i<=9;i++){if(dict[i].state==='ACTIVE'){roundExposure+=getBet(dict[i].step);roundBetsCount++;}}};
+  calcExposure(appState.yNums); calcExposure(appState.kNums);
+  appState.axyapatra-=roundExposure;
+  drishtiStats.totalBets+=roundBetsCount; drishtiStats.roundsPlayed++;
+  if(roundExposure>drishtiStats.maxExposure) drishtiStats.maxExposure=roundExposure;
+  let capReturned=false;
+
+  const advanceStep=(obj,statKey,side,num)=>{
+    obj.step++;
+    if(obj.step>settings.maxSteps){
+      if(settings.capRule){obj.state='CAP';obj.step=settings.maxSteps;drishtiStats.numData[statKey].capOccurrence++;pushEvent(roundEvents,side,num,'CAP');}
+      else obj.step=settings.maxSteps;
+    }
+  };
+
+  const processSide=(val,dict,side)=>{
+    if(val===0){
+      for(let i=1;i<=9;i++) if(dict[i].state==='ACTIVE') advanceStep(dict[i],`${side}_${i}`,side,i);
+      return;
+    }
+    for(let i=1;i<=9;i++){
+      const obj=dict[i], stat=drishtiStats.numData[`${side}_${i}`];
+      if(i===val){
+        if(obj.state==='INACTIVE'){
+          obj.state='ACTIVE'; obj.step=1; stat.activationRound=appState.chakra; pushEvent(roundEvents,side,i,'ACTIVATE');
+        } else if(obj.state==='ACTIVE'){
+          const currentBet=getBet(obj.step), payout=currentBet*9;
+          let totalInvested=0; for(let s=1;s<=obj.step;s++) totalInvested+=getBet(s);
+          const profitAmount=payout-totalInvested;
+          appState.axyapatra+=payout; stat.netProfit+=profitAmount; stat.repeatRound=appState.chakra; stat.winStep=obj.step;
+          pushEvent(roundEvents,side,i,'REPEAT'); obj.state='LOCKED'; pushEvent(roundEvents,side,i,'WIN');
+          showToast('TREASURY TRIUMPH');
+        } else if(obj.state==='CAP'){capReturned=true; pushEvent(roundEvents,side,i,'CAP RETURN');}
+      } else if(obj.state==='ACTIVE'){
+        advanceStep(obj,`${side}_${i}`,side,i);
+      }
+    }
+  };
+
+  processSide(yVal,appState.yNums,'Y');
+  processSide(kVal,appState.kNums,'K');
+
+  visualTimeline.push({chakra:appState.chakra,yVal,kVal,events:roundEvents});
+  addHistoryRow(appState.chakra,yVal,kVal,roundExposure,appState.axyapatra);
+  appState.chakra++;
+  drishtiStats.netProfit=appState.axyapatra-appState.startAxyapatra;
+
+  const newCoin=getActiveCoinSize();
+  if(settings.autoScale && newCoin!==prevCoin){rebuildLadder();showToast(`PRAYOGA SCALE SHIFTED · Coin Size ${newCoin}`);}
+
+  checkThresholds();
+  updateAllUI();
+  if(capReturned) showModal('CAP RETURNED','A capped number has returned.');
+}
+function checkThresholds(){
+  const targetValue=appState.startAxyapatra + settings.targetUsd;
+  if(appState.axyapatra>=targetValue) showToast('TREASURY TARGET ACHIEVED');
+  if(appState.axyapatra<=(appState.startAxyapatra-settings.stopLoss)) showModal('TREASURY WARNING',`Axyapatra reached Stop Loss (Down by ₹${settings.stopLoss})`);
+  else if(appState.axyapatra<=settings.safetyReserve) showModal('TREASURY WARNING',`Axyapatra reached Safety Reserve (₹${settings.safetyReserve})`);
+}
+function undo(){
+  if(stateHistory.length===0){showToast('NO HISTORY TO UNDO');return;}
+  const prev=stateHistory.pop();
+  appState=prev.appState; drishtiStats=prev.drishtiStats; visualTimeline=prev.visualTimeline; settings=prev.settings;
+  const tbody=document.getElementById('history-body'); if(tbody.firstElementChild) tbody.removeChild(tbody.firstElementChild);
+  updateAllUI(); showToast('UNDO SUCCESSFUL');
+}
+function clearKumbha(){appState.chakra=1;initNumbersState();stateHistory=[];visualTimeline=[];pendingY=null;pendingK=null;highlightPending();updateAllUI();showToast('KUMBHA RESET');}
+function startNewPrayoga(){appState.chakra=1;initNumbersState();stateHistory=[];visualTimeline=[];pendingY=null;pendingK=null;highlightPending();updateAllUI();showToast('ĀHUTI PRAYOGA READY');}
+
+function updateRiskMeter(){
+  let recentCaps=0;
+  const startIdx=Math.max(0,visualTimeline.length-10);
+  for(let i=startIdx;i<visualTimeline.length;i++) recentCaps+=visualTimeline[i].events.filter(e=>e.type==='CAP').length;
+  let riskScore=Math.min(100,(recentCaps*14)+(drishtiStats.maxExposure/1000)+(Object.values(appState.yNums).filter(n=>n.state==='ACTIVE').length*3)+(Object.values(appState.kNums).filter(n=>n.state==='ACTIVE').length*3));
+  let riskLvl='LOW'; const fillPct=Math.min(100,riskScore);
+  if(riskScore>75) riskLvl='EXTREME'; else if(riskScore>50) riskLvl='HIGH'; else if(riskScore>25) riskLvl='MEDIUM';
+  const fill=document.getElementById('risk-meter-fill'), text=document.getElementById('risk-meter-text');
+  fill.style.width=fillPct+'%'; fill.className='risk-meter-fill '+riskLvl.toLowerCase(); text.textContent=riskLvl;
+  const banner=document.getElementById('cap-storm-banner');
+  if(recentCaps>=3){let intensity='LOW'; if(recentCaps>=7) intensity='HIGH'; else if(recentCaps>=5) intensity='MEDIUM'; banner.style.display='block'; document.getElementById('storm-intensity').textContent=intensity;}
+  else banner.style.display='none';
+}
+function getStatFor(side,num){
+  const entry=drishtiStats.numData[`${side}_${num}`];
+  const obj=(side==='Y'?appState.yNums:appState.kNums)[num];
+  const capProb=entry.capOccurrence>0?Math.min(100,entry.capOccurrence*25):0;
+  const stabilityScore=obj.state==='LOCKED'?30:(obj.state==='ACTIVE'?15-(obj.step*2):0);
+  const futureRiskProbability=Math.min(100,(obj.state==='CAP'?90:0)+(obj.state==='ACTIVE'?obj.step*10:0)+capProb);
+  return {capProbability:capProb,stabilityScore,futureRiskProbability};
+}
+function renderYKTPanel(){
+  let yArr=[],kArr=[],nextExposure=0;
+  const map=(dict,arr)=>{for(let i=1;i<=9;i++){if(dict[i].state==='ACTIVE'){const amt=getBet(dict[i].step);arr.push(`${formatCompact(amt)} on ${i} (S${dict[i].step})`); nextExposure+=amt;}}};
+  map(appState.yNums,yArr); map(appState.kNums,kArr);
+  document.getElementById('y-plan').innerHTML=yArr.length?yArr.join(' | '):'--';
+  document.getElementById('k-plan').innerHTML=kArr.length?kArr.join(' | '):'--';
+  document.getElementById('t-plan').innerText=formatCompact(nextExposure);
+}
+function renderVyuha(){
+  const yGrid=document.getElementById('vyuha-y'), kGrid=document.getElementById('vyuha-k');
+  yGrid.innerHTML=''; kGrid.innerHTML='';
+  const build=(num,obj,side)=>{
+    let css='heatmap-normal'; const stat=getStatFor(side,num);
+    if(obj.state==='CAP') css='heatmap-cap';
+    else if(obj.state==='LOCKED') css='heatmap-locked';
+    else if(obj.state==='INACTIVE') css='heatmap-inactive';
+    else if(stat.futureRiskProbability>70) css='heatmap-danger';
+    else if(stat.capProbability>40) css='heatmap-risk';
+    else if(stat.stabilityScore>20) css='heatmap-safe';
+    const pct=(obj.state==='INACTIVE'||obj.state==='LOCKED')?0:Math.min(100,(obj.step/settings.maxSteps)*100);
+    return `<div class="vyuha-tile ${css}"><div class="vyuha-progress" style="height:${pct}%"></div><div style="position:relative;z-index:2;text-align:center"><span style="font-size:1.2rem">${num}</span><br><span style="font-size:.7rem">S${obj.step}</span></div></div>`;
+  };
+  for(let i=1;i<=9;i++){yGrid.innerHTML+=build(i,appState.yNums[i],'Y');kGrid.innerHTML+=build(i,appState.kNums[i],'K');}
+}
+function renderTimeline(){
+  const container=document.getElementById('timeline-body'); container.innerHTML='';
+  for(let i=visualTimeline.length-1;i>=0;i--){
+    const item=visualTimeline[i];
+    const eventHtml=item.events.map(e=>{let cls='te-activate'; if(e.type==='REPEAT') cls='te-repeat'; if(e.type==='WIN') cls='te-win'; if(e.type.includes('CAP')) cls='te-cap'; return `<span class="t-event-badge ${cls}">${e.side}${e.num} ${e.type}</span>`;}).join('');
+    container.innerHTML+=`<div class="timeline-row"><div class="t-chakra">${item.chakra}</div><div class="t-result">Y${item.yVal===0?'-':item.yVal} K${item.kVal===0?'-':item.kVal}</div><div class="t-events">${eventHtml}</div></div>`;
+  }
+}
+function renderDrishti(){
+  document.getElementById('stat-rounds').innerText=Math.max(0,appState.chakra-1);
+  document.getElementById('stat-bets').innerText=drishtiStats.totalBets;
+  document.getElementById('stat-profit').innerText=formatCurrency(drishtiStats.netProfit);
+  document.getElementById('stat-exposure').innerText=formatCurrency(drishtiStats.maxExposure);
+}
+function renderSopana(){
+  const tbody=document.getElementById('ladder-body'); tbody.innerHTML='';
+  for(let i=0;i<settings.maxSteps;i++){tbody.innerHTML+=`<tr><td>S${ladder[i].step}</td><td>${formatCurrency(ladder[i].amount)}</td></tr>`;}
+}
+function addHistoryRow(chakra,y,k,bet,bank){
+  document.getElementById('history-body').insertAdjacentHTML('afterbegin',`<tr><td>${chakra}</td><td>${y}</td><td>${k}</td><td>${bet}</td><td>${formatCurrency(bank)}</td></tr>`);
+}
+function updateAllUI(){
+  document.getElementById('live-axyapatra').innerText=formatCurrency(appState.axyapatra);
+  document.getElementById('start-axyapatra').innerText=formatCurrency(appState.startAxyapatra);
+  document.getElementById('current-chakra').innerText=appState.chakra;
+  renderYKTPanel(); renderVyuha(); renderTimeline(); renderDrishti(); renderSopana(); updateRiskMeter();
+}
+function bindSettings(){
+  document.getElementById('btn-undo').onclick=undo;
+  document.getElementById('btn-clear').onclick=clearKumbha;
+  document.getElementById('btn-new').onclick=startNewPrayoga;
+  document.getElementById('btn-apply-yantra').onclick=()=>{
+    appState.startAxyapatra=parseInt(document.getElementById('set-axyapatra').value)||30000;
+    settings.targetUsd=parseInt(document.getElementById('set-target-usd').value)||500;
+    settings.targetPct=parseFloat(document.getElementById('set-target-pct').value)||1.67;
+    settings.stopLoss=parseInt(document.getElementById('set-stop-loss').value)||2000;
+    settings.coinSize=parseInt(document.getElementById('set-coin-size').value)||100;
+    settings.maxBet=parseInt(document.getElementById('set-max-bet').value)||3000;
+    settings.isDouble=document.getElementById('set-double-ladder').checked;
+    settings.maxSteps=parseInt(document.getElementById('set-max-steps').value)||12;
+    settings.safetyReserve=parseInt(document.getElementById('set-safety').value)||20000;
+    settings.capRule=document.getElementById('set-cap-rule').checked;
+    settings.autoScale=document.getElementById('set-auto-scale').checked;
+    rebuildLadder(); updateAllUI(); showToast('YANTRA APPLIED');
+  };
+  document.querySelectorAll('.nav-btn').forEach(btn=>btn.onclick=(e)=>{
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    const target=e.currentTarget.getAttribute('data-target');
+    e.currentTarget.classList.add('active');
+    document.getElementById(target).classList.add('active');
+  });
+}
+function init(){
+  initNumbersState(); initDrishtiData(); rebuildLadder(); bindKeypads(); bindSettings(); updateAllUI();
+}
+window.addEventListener('load',init);
